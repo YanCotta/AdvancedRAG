@@ -1,57 +1,66 @@
 # AdvancedRAG
 
 ## Overview
-AdvancedRAG is a project that demonstrates advanced Retrieval Augmented Generation (RAG) pipelines.
-It leverages a combination of large language models and vector-based retrieval to answer questions and extract
-information from documents with enhanced groundedness and relevance metrics.
+AdvancedRAG is a repository showcasing advanced Retrieval Augmented Generation (RAG) techniques. It demonstrates:
+- **AutoMerging Retrieval:** Automates hierarchical merging of document nodes via vector store indexing for enhanced retrieval relevance.
+- **Advanced RAG Pipeline:** Integrates multiple RAG workflows—including Sentence Window Retrieval and automated index building—with TruLens evaluation to assess output groundedness and relevance.
 
-## Features
-- **Basic RAG Pipeline:** Build a simple vector store index from documents.
-- **Advanced RAG Pipelines:** Utilize:
-  - Sentence Window Retrieval to extract granular context.
-  - Auto-merging Retrieval for hierarchical document processing.
-- **Evaluation with TruLens:** Integrate feedback and evaluation modules to assess answer quality.
+## File Structure
+- **/AutoMergingRetrieval**
+  Core implementation of auto-merging techniques:
+  - `utils.py`: Core utilities for document processing and indexing
+  - `AutoMergingRetrieval.py`: Implementation of hierarchical node merging
+  
+- **/AdvancedRAGPipeline**  
+  Complete RAG pipeline implementation:
+  - **/src**:  
+    - `utils.py`: Pipeline utilities and configuration
+    - `pipeline.py`: Orchestrates RAG workflows with evaluation
+  - **/data**:  
+    Sample data and evaluation sets
 
-## Setup
+- **/data**  
+  Holds shared resources like PDF documents and evaluation question files.
+
+## Techniques and Methodologies
+- **AutoMerging Retrieval:**  
+  Utilizes hierarchical node parsing to merge document nodes across varying levels of granularity, resulting in more contextualized retrieval.
+  
+- **Sentence Window Retrieval:**  
+  Extracts text in overlapping windows to capture granular context, enhancing retrieval precision.
+
+- **TruLens Evaluation:**  
+  Integrates feedback mechanisms that measure answer relevance and groundedness, ensuring high-quality responses.
+
+## Implementation Details
+- **AutoMergingRetrieval:**
+  - Implements dynamic node size adjustment
+  - Uses similarity-based merging strategies
+  - Supports customizable merging thresholds
+
+- **Advanced RAG Pipeline:**
+  - Integrates multiple retrieval strategies
+  - Features automated evaluation loops
+  - Provides detailed performance metrics
+
+## Setup & Usage
 1. **Clone the repository:**
    ```
    git clone https://github.com/YanCotta/AdvancedRAG.git
    ```
 2. **Install dependencies:**
-   Ensure you have Python 3.8+ installed.
    ```
    pip install -r requirements.txt
    ```
-3. **Environment Variables:**
-   Create a `.env` file at the root of the project and add your API keys:
+3. **Environment Variables:**  
+   Create a `.env` file at the project root with your API keys:
    ```
    OPENAI_API_KEY=your_openai_api_key
    HUGGINGFACE_API_KEY=your_huggingface_api_key
    ```
+4. **Run the pipelines:**
+   - For basic and auto-merging retrieval, execute the scripts in `/src`.
+   - For the full RAG pipeline with additional evaluations, run the scripts in `/AdvancedRAGPipeline/src`.
 
-## Usage
-- **Basic Pipeline:**
-  Run the pipeline script to perform a basic RAG query:
-  ```
-  python src/pipeline.py
-  ```
-- **Evaluation Dashboard:**
-  The pipeline script automatically launches a local dashboard (http://localhost:8501/) for feedback evaluation using TruLens.
-
-## File Structure
-- `/src`: Contains core modules such as:
-  - `utils.py`: Utility functions for API key loading, index building, and query engine configuration.
-  - `pipeline.py`: The main script demonstrating both basic and advanced RAG pipelines.
-- `/data`: Contains input documents and evaluation questions.
-- `/LICENSE`: MIT License details.
-
-## Educational Insights
-- The code is structured with educational inline comments to help you understand each processing step.
-- The utility functions are modularized to easily extend or modify the RAG components.
-- Evaluation modules integrated with TruLens help you assess output relevance and groundedness.
-
-## Contributing
-Contributions and improvements are welcome. Please fork the repository and create a pull request.
-
-## License
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+## Contributing & License
+Contributions are welcome. See the MIT License in the LICENSE file for details.
