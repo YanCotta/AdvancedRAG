@@ -16,45 +16,57 @@ import nest_asyncio
 
 nest_asyncio.apply()
 
+# ------------------------------------------------------------------------------
+# Utility functions for environment API key loading and feedback configuration.
+# These functions help abstract configuration and index building for our RAG pipeline.
+# ------------------------------------------------------------------------------
 
 def get_openai_api_key():
+    """
+    Loads the OpenAI API key from the environment using a .env file.
+    """
     _ = load_dotenv(find_dotenv())
-
     return os.getenv("OPENAI_API_KEY")
 
 
 def get_hf_api_key():
+    """
+    Loads the HuggingFace API key from the environment using a .env file.
+    """
     _ = load_dotenv(find_dotenv())
-
     return os.getenv("HUGGINGFACE_API_KEY")
 
 openai = OpenAI()
 
+# Create feedback objects with detailed in-line explanations.
 qa_relevance = (
     Feedback(openai.relevance_with_cot_reasons, name="Answer Relevance")
-    .on_input_output()
+    .on_input_output()  # Measures relevance based on both inputs and outputs.
 )
 
 qs_relevance = (
     Feedback(openai.relevance_with_cot_reasons, name = "Context Relevance")
-    .on_input()
-    .on(TruLlama.select_source_nodes().node.text)
-    .aggregate(np.mean)
+    .on_input()  # Only consider the question.
+    .on(TruLlama.select_source_nodes().node.text)  # Then on the text of source nodes.
+    .aggregate(np.mean)  # Takes the mean as an aggregate statistic.
 )
 
-#grounded = Groundedness(groundedness_provider=openai, summarize_provider=openai)
+# Use groundedness to verify that answers are well-supported.
 grounded = Groundedness(groundedness_provider=openai)
 
 groundedness = (
     Feedback(grounded.groundedness_measure_with_cot_reasons, name="Groundedness")
         .on(TruLlama.select_source_nodes().node.text)
         .on_output()
-        .aggregate(grounded.grounded_statements_aggregator)
+        .aggregate(grounded.grounded_statements_aggregator)  # Aggregate method for grounded statements.
 )
 
 feedbacks = [qa_relevance, qs_relevance, groundedness]
 
 def get_trulens_recorder(query_engine, feedbacks, app_id):
+    """
+    Creates a TruLlama recorder with a specific query engine, feedback, and app_id.
+    """
     tru_recorder = TruLlama(
         query_engine,
         app_id=app_id,
@@ -63,6 +75,9 @@ def get_trulens_recorder(query_engine, feedbacks, app_id):
     return tru_recorder
 
 def get_prebuilt_trulens_recorder(query_engine, app_id):
+    """
+    A convenience function to create a prebuilt TruLlama recorder using default feedbacks.
+    """
     tru_recorder = TruLlama(
         query_engine,
         app_id=app_id,
@@ -77,11 +92,19 @@ from llama_index.indices.postprocessor import SentenceTransformerRerank
 from llama_index import load_index_from_storage
 import os
 
+# ------------------------------------------------------------------------------
+# Functions related to index creation and query engine setup for retrieval tasks.
+# ------------------------------------------------------------------------------
 
 def build_sentence_window_index(
     document, llm, embed_model="local:BAAI/bge-small-en-v1.5", save_dir="sentence_index"
 ):
-    # create the sentence window node parser w/ default settings
+    """
+    Builds or loads a sentence window index for a given document.
+    - Splits document into sentence windows.
+    - Persists the index if not already existing.
+    """
+    # Create a SentenceWindowNodeParser with default settings
     node_parser = SentenceWindowNodeParser.from_defaults(
         window_size=3,
         window_metadata_key="window",
@@ -111,12 +134,14 @@ def get_sentence_window_query_engine(
     similarity_top_k=6,
     rerank_top_n=2,
 ):
-    # define postprocessors
+    """
+    Sets up the query engine for sentence window retrieval.
+    - Uses postprocessors to replace metadata and rerank the results.
+    """
     postproc = MetadataReplacementPostProcessor(target_metadata_key="window")
     rerank = SentenceTransformerRerank(
         top_n=rerank_top_n, model="BAAI/bge-reranker-base"
     )
-
     sentence_window_engine = sentence_index.as_query_engine(
         similarity_top_k=similarity_top_k, node_postprocessors=[postproc, rerank]
     )
@@ -139,6 +164,10 @@ def build_automerging_index(
     save_dir="merging_index",
     chunk_sizes=None,
 ):
+    """
+    Builds or loads an auto-merging index from a list of documents.
+    - Splits the document into hierarchical nodes for various granularities.
+    """
     chunk_sizes = chunk_sizes or [2048, 512, 128]
     node_parser = HierarchicalNodeParser.from_defaults(chunk_sizes=chunk_sizes)
     nodes = node_parser.get_nodes_from_documents(documents)
@@ -168,6 +197,10 @@ def get_automerging_query_engine(
     similarity_top_k=12,
     rerank_top_n=2,
 ):
+    """
+    Configures and returns a query engine for the auto-merging index.
+    - Wraps a retriever with an AutoMergingRetriever and adds a re-ranker.
+    """
     base_retriever = automerging_index.as_retriever(similarity_top_k=similarity_top_k)
     retriever = AutoMergingRetriever(
         base_retriever, automerging_index.storage_context, verbose=True
