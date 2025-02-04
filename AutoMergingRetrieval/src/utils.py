@@ -1,27 +1,44 @@
+"""
+Utility functions for Advanced RAG including OpenAI API key retrieval,
+index building and query engine creation.
+"""
+
+# Standard library imports
 import os
+
+# Third-party imports
 from dotenv import load_dotenv, find_dotenv
-
 import numpy as np
-
 import nest_asyncio
+from trulens_eval import Feedback, TruLlama, OpenAI
+from trulens_eval.feedback import Groundedness
+from llama_index import (
+    ServiceContext,
+    VectorStoreIndex,
+    StorageContext,
+    load_index_from_storage,
+)
+from llama_index.node_parser import SentenceWindowNodeParser, HierarchicalNodeParser, get_leaf_nodes
+from llama_index.indices.postprocessor import MetadataReplacementPostProcessor, SentenceTransformerRerank
+from llama_index.retrievers import AutoMergingRetriever
+from llama_index.query_engine import RetrieverQueryEngine
 
+# Apply nested asyncio
 nest_asyncio.apply()
 
 
-def get_openai_api_key():
-    _ = load_dotenv(find_dotenv())
-
+def get_openai_api_key() -> str:
+    """
+    Loads the OpenAI API key from environment variables.
+    """
+    load_dotenv(find_dotenv())
     return os.getenv("OPENAI_API_KEY")
 
-from trulens_eval import (
-    Feedback,
-    TruLlama,
-    OpenAI
-)
 
-from trulens_eval.feedback import Groundedness
-
-def get_prebuilt_trulens_recorder(query_engine, app_id):
+def get_prebuilt_trulens_recorder(query_engine, app_id: str):
+    """
+    Prepares a TruLlama recorder with prebuilt feedbacks.
+    """
     openai = OpenAI()
 
     qa_relevance = (
@@ -30,15 +47,14 @@ def get_prebuilt_trulens_recorder(query_engine, app_id):
     )
 
     qs_relevance = (
-        Feedback(openai.relevance_with_cot_reasons, name = "Context Relevance")
+        Feedback(openai.relevance_with_cot_reasons, name="Context Relevance")
         .on_input()
         .on(TruLlama.select_source_nodes().node.text)
         .aggregate(np.mean)
     )
 
-#     grounded = Groundedness(groundedness_provider=openai, summarize_provider=openai)
+    # Use groundedness without summarize_provider for now
     grounded = Groundedness(groundedness_provider=openai)
-
     groundedness = (
         Feedback(grounded.groundedness_measure_with_cot_reasons, name="Groundedness")
             .on(TruLlama.select_source_nodes().node.text)
@@ -54,22 +70,14 @@ def get_prebuilt_trulens_recorder(query_engine, app_id):
     )
     return tru_recorder
 
-from llama_index import ServiceContext, VectorStoreIndex, StorageContext
-from llama_index.node_parser import SentenceWindowNodeParser
-from llama_index.indices.postprocessor import MetadataReplacementPostProcessor
-from llama_index.indices.postprocessor import SentenceTransformerRerank
-from llama_index import load_index_from_storage
-import os
-
 
 def build_sentence_window_index(
-    documents,
-    llm,
-    embed_model="local:BAAI/bge-small-en-v1.5",
-    sentence_window_size=3,
-    save_dir="sentence_index",
+    documents, llm, embed_model: str = "local:BAAI/bge-small-en-v1.5",
+    sentence_window_size: int = 3, save_dir: str = "sentence_index"
 ):
-    # create the sentence window node parser w/ default settings
+    """
+    Builds or loads a sentence window index from documents.
+    """
     node_parser = SentenceWindowNodeParser.from_defaults(
         window_size=sentence_window_size,
         window_metadata_key="window",
@@ -81,52 +89,37 @@ def build_sentence_window_index(
         node_parser=node_parser,
     )
     if not os.path.exists(save_dir):
-        sentence_index = VectorStoreIndex.from_documents(
-            documents, service_context=sentence_context
-        )
+        sentence_index = VectorStoreIndex.from_documents(documents, service_context=sentence_context)
         sentence_index.storage_context.persist(persist_dir=save_dir)
     else:
         sentence_index = load_index_from_storage(
             StorageContext.from_defaults(persist_dir=save_dir),
             service_context=sentence_context,
         )
-
     return sentence_index
 
 
 def get_sentence_window_query_engine(
-    sentence_index,
-    similarity_top_k=6,
-    rerank_top_n=2,
+    sentence_index, similarity_top_k: int = 6, rerank_top_n: int = 2
 ):
-    # define postprocessors
+    """
+    Returns a query engine for the sentence window index with postprocessing.
+    """
     postproc = MetadataReplacementPostProcessor(target_metadata_key="window")
-    rerank = SentenceTransformerRerank(
-        top_n=rerank_top_n, model="BAAI/bge-reranker-base"
-    )
-
+    rerank = SentenceTransformerRerank(top_n=rerank_top_n, model="BAAI/bge-reranker-base")
     sentence_window_engine = sentence_index.as_query_engine(
         similarity_top_k=similarity_top_k, node_postprocessors=[postproc, rerank]
     )
     return sentence_window_engine
 
 
-from llama_index.node_parser import HierarchicalNodeParser
-
-from llama_index.node_parser import get_leaf_nodes
-from llama_index import StorageContext
-from llama_index.retrievers import AutoMergingRetriever
-from llama_index.indices.postprocessor import SentenceTransformerRerank
-from llama_index.query_engine import RetrieverQueryEngine
-
-
 def build_automerging_index(
-    documents,
-    llm,
-    embed_model="local:BAAI/bge-small-en-v1.5",
-    save_dir="merging_index",
-    chunk_sizes=None,
+    documents, llm, embed_model: str = "local:BAAI/bge-small-en-v1.5",
+    save_dir: str = "merging_index", chunk_sizes=None
 ):
+    """
+    Builds or loads an automerging index from documents.
+    """
     chunk_sizes = chunk_sizes or [2048, 512, 128]
     node_parser = HierarchicalNodeParser.from_defaults(chunk_sizes=chunk_sizes)
     nodes = node_parser.get_nodes_from_documents(documents)
@@ -139,9 +132,7 @@ def build_automerging_index(
     storage_context.docstore.add_documents(nodes)
 
     if not os.path.exists(save_dir):
-        automerging_index = VectorStoreIndex(
-            leaf_nodes, storage_context=storage_context, service_context=merging_context
-        )
+        automerging_index = VectorStoreIndex(leaf_nodes, storage_context=storage_context, service_context=merging_context)
         automerging_index.storage_context.persist(persist_dir=save_dir)
     else:
         automerging_index = load_index_from_storage(
@@ -152,17 +143,14 @@ def build_automerging_index(
 
 
 def get_automerging_query_engine(
-    automerging_index,
-    similarity_top_k=12,
-    rerank_top_n=6,
+    automerging_index, similarity_top_k: int = 12, rerank_top_n: int = 6
 ):
+    """
+    Returns a query engine for the automerging index.
+    """
     base_retriever = automerging_index.as_retriever(similarity_top_k=similarity_top_k)
-    retriever = AutoMergingRetriever(
-        base_retriever, automerging_index.storage_context, verbose=True
-    )
-    rerank = SentenceTransformerRerank(
-        top_n=rerank_top_n, model="BAAI/bge-reranker-base"
-    )
+    retriever = AutoMergingRetriever(base_retriever, automerging_index.storage_context, verbose=True)
+    rerank = SentenceTransformerRerank(top_n=rerank_top_n, model="BAAI/bge-reranker-base")
     auto_merging_engine = RetrieverQueryEngine.from_args(
         retriever, node_postprocessors=[rerank]
     )
