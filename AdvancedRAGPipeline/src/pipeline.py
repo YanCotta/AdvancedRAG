@@ -22,6 +22,10 @@ import openai
 from AdvancedRAG.config import settings
 openai.api_key = settings.OPENAI_API_KEY
 
+# Add these imports at the top
+from .advanced_retrieval import AdvancedRetrieval
+from .confidence_summary import ConfidenceSummary
+
 # ------------------------------------------------------------------------------
 # Step 1: Load source documents.
 # Here we load a PDF document that serves as a knowledge base.
@@ -81,11 +85,37 @@ service_context = ServiceContext.from_defaults(
 )
 index = VectorStoreIndex.from_documents([document], service_context=service_context)
 
-# Create a query engine for basic queries.
-query_engine = index.as_query_engine()
+# Modify the query engine creation to include advanced features
+def create_advanced_query_engine(index):
+    """Creates an advanced query engine with additional retrieval techniques."""
+    advanced_retrieval = AdvancedRetrieval()
+    confidence_summary = ConfidenceSummary()
+    
+    base_engine = index.as_query_engine()
+    
+    def advanced_query(query_str: str):
+        # Get initial results
+        initial_nodes = index.as_retriever().retrieve(query_str)
+        
+        # Apply cross-encoder reranking
+        reranked_nodes = advanced_retrieval.rerank_nodes(query_str, initial_nodes)
+        
+        # Perform multi-hop reasoning if needed
+        answer, confidence = advanced_retrieval.multi_hop_query(
+            query_str, reranked_nodes, llm
+        )
+        
+        # Analyze confidence and generate summary
+        analysis = confidence_summary.analyze_response(answer, confidence)
+        return analysis
+    
+    return advanced_query
+
+# Replace the existing query engine creation with:
+query_engine = create_advanced_query_engine(index)
 
 # Run a sample query.
-response = query_engine.query("What are steps to take when finding projects to build your experience?")
+response = query_engine("What are steps to take when finding projects to build your experience?")
 print(str(response))
 
 # ------------------------------------------------------------------------------
@@ -125,7 +155,7 @@ from AdvancedRAG.src.utils import get_prebuilt_trulens_recorder
 tru_recorder = get_prebuilt_trulens_recorder(query_engine, app_id="Direct Query Engine")
 with tru_recorder as recording:
     for question in eval_questions:
-        response = query_engine.query(question)
+        response = query_engine(question)
 
 records, feedback = tru.get_records_and_feedback(app_ids=[])
 print(records.head())
