@@ -22,6 +22,8 @@ AdvancedRAG is a repository showcasing advanced Retrieval Augmented Generation (
 - **/data**  
   Holds shared resources like PDF documents and evaluation question files.
 
+## Architecture
+
 ## Techniques and Methodologies
 - **AutoMerging Retrieval:**  
   Utilizes hierarchical node parsing to merge document nodes across varying levels of granularity, resulting in more contextualized retrieval.
