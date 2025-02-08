@@ -36,34 +36,57 @@ def get_openai_api_key() -> str:
     return settings.OPENAI_API_KEY
 
 
+def get_hf_api_key():
+    """
+    Loads the HuggingFace API key from the environment using a .env file.
+    """
+    return settings.HUGGINGFACE_API_KEY
+
+
+openai = OpenAI()
+
+# Create feedback objects with detailed in-line explanations.
+qa_relevance = (
+    Feedback(openai.relevance_with_cot_reasons, name="Answer Relevance")
+    .on_input_output()  # Measures relevance based on both inputs and outputs.
+)
+
+qs_relevance = (
+    Feedback(openai.relevance_with_cot_reasons, name="Context Relevance")
+    .on_input()  # Only consider the question.
+    .on(TruLlama.select_source_nodes().node.text)  # Then on the text of source nodes.
+    .aggregate(np.mean)  # Takes the mean as an aggregate statistic.
+)
+
+# Use groundedness to verify that answers are well-supported.
+grounded = Groundedness(groundedness_provider=openai)
+
+groundedness = (
+    Feedback(grounded.groundedness_measure_with_cot_reasons, name="Groundedness")
+        .on(TruLlama.select_source_nodes().node.text)
+        .on_output()
+        .aggregate(grounded.grounded_statements_aggregator)  # Aggregate method for grounded statements.
+)
+
+feedbacks = [qa_relevance, qs_relevance, groundedness]
+
+
+def get_trulens_recorder(query_engine, feedbacks, app_id):
+    """
+    Creates a TruLlama recorder with a specific query engine, feedback, and app_id.
+    """
+    tru_recorder = TruLlama(
+        query_engine,
+        app_id=app_id,
+        feedbacks=feedbacks
+    )
+    return tru_recorder
+
+
 def get_prebuilt_trulens_recorder(query_engine, app_id: str):
     """
     Prepares a TruLlama recorder with prebuilt feedbacks.
     """
-    openai = OpenAI()
-
-    qa_relevance = (
-        Feedback(openai.relevance_with_cot_reasons, name="Answer Relevance")
-        .on_input_output()
-    )
-
-    qs_relevance = (
-        Feedback(openai.relevance_with_cot_reasons, name="Context Relevance")
-        .on_input()
-        .on(TruLlama.select_source_nodes().node.text)
-        .aggregate(np.mean)
-    )
-
-    # Use groundedness without summarize_provider for now
-    grounded = Groundedness(groundedness_provider=openai)
-    groundedness = (
-        Feedback(grounded.groundedness_measure_with_cot_reasons, name="Groundedness")
-            .on(TruLlama.select_source_nodes().node.text)
-            .on_output()
-            .aggregate(grounded.grounded_statements_aggregator)
-    )
-
-    feedbacks = [qa_relevance, qs_relevance, groundedness]
     tru_recorder = TruLlama(
         query_engine,
         app_id=app_id,
@@ -73,8 +96,8 @@ def get_prebuilt_trulens_recorder(query_engine, app_id: str):
 
 
 def build_sentence_window_index(
-    documents, llm, embed_model: str = settings.EMBED_MODEL,
-    sentence_window_size: int = settings.SENTENCE_WINDOW_SIZE, save_dir: str = settings.SENTENCE_INDEX_DIR
+    document, llm, embed_model: str = settings.EMBED_MODEL,
+    sentence_window_size: int = 3, save_dir: str = "sentence_index"
 ):
     """
     Builds or loads a sentence window index from documents.
@@ -90,7 +113,7 @@ def build_sentence_window_index(
         node_parser=node_parser,
     )
     if not os.path.exists(save_dir):
-        sentence_index = VectorStoreIndex.from_documents(documents, service_context=sentence_context)
+        sentence_index = VectorStoreIndex.from_documents(document, service_context=sentence_context)
         sentence_index.storage_context.persist(persist_dir=save_dir)
     else:
         sentence_index = load_index_from_storage(
@@ -101,7 +124,7 @@ def build_sentence_window_index(
 
 
 def get_sentence_window_query_engine(
-    sentence_index, similarity_top_k: int = settings.SIMILARITY_TOP_K, rerank_top_n: int = settings.RERANK_TOP_N
+    sentence_index, similarity_top_k: int = 6, rerank_top_n: int = 2
 ):
     """
     Returns a query engine for the sentence window index with postprocessing.
@@ -116,7 +139,7 @@ def get_sentence_window_query_engine(
 
 def build_automerging_index(
     documents, llm, embed_model: str = settings.EMBED_MODEL,
-    save_dir: str = settings.MERGING_INDEX_DIR, chunk_sizes=None
+    save_dir: str = "merging_index", chunk_sizes=None
 ):
     """
     Builds or loads an automerging index from documents.
@@ -144,7 +167,7 @@ def build_automerging_index(
 
 
 def get_automerging_query_engine(
-    automerging_index, similarity_top_k: int = settings.SIMILARITY_TOP_K, rerank_top_n: int = settings.RERANK_TOP_N
+    automerging_index, similarity_top_k: int = 12, rerank_top_n: int = 6
 ):
     """
     Returns a query engine for the automerging index.

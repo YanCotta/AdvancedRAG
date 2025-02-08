@@ -7,7 +7,7 @@
 # Educational comments are included to explain each step of the pipeline.
 # ------------------------------------------------------------------------------
 
-import AdvancedRAG.src.utils as utils
+from AdvancedRAG import utils
 import os
 import openai
 
@@ -93,16 +93,14 @@ tru.run_dashboard()
 # Constructs a specialized index that uses sentence windows.
 # ------------------------------------------------------------------------------
 llm = OpenAI(model="gpt-3.5-turbo", temperature=0.1)
-from AdvancedRAG.src.utils import build_sentence_window_index
-sentence_index = build_sentence_window_index(
+sentence_index = utils.build_sentence_window_index(
     document,
     llm,
     embed_model=settings.EMBED_MODEL,
     save_dir="sentence_index"
 )
 
-from AdvancedRAG.src.utils import get_sentence_window_query_engine
-sentence_window_engine = get_sentence_window_query_engine(sentence_index)
+sentence_window_engine = utils.get_sentence_window_query_engine(sentence_index)
 window_response = sentence_window_engine.query("how do I get started on a personal project in AI?")
 print(str(window_response))
 
@@ -124,16 +122,14 @@ tru.run_dashboard()
 # Step 6: Advanced RAG pipeline - Auto-merging Retrieval.
 # This index automatically merges nodes across different granularities.
 # ------------------------------------------------------------------------------
-from AdvancedRAG.src.utils import build_automerging_index
-automerging_index = build_automerging_index(
+automerging_index = utils.build_automerging_index(
     documents,
     llm,
     embed_model=settings.EMBED_MODEL,
     save_dir="merging_index"
 )
 
-from AdvancedRAG.src.utils import get_automerging_query_engine
-automerging_query_engine = get_automerging_query_engine(automerging_index)
+automerging_query_engine = utils.get_automerging_query_engine(automerging_index)
 auto_merging_response = automerging_query_engine.query("How do I build a portfolio of AI projects?")
 print(str(auto_merging_response))
 

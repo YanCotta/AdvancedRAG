@@ -7,7 +7,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Import utilities and required components
-import AdvancedRAG.AutoMergingRetrieval.src.utils as utils
+from AdvancedRAG import utils
 from llama_index import SimpleDirectoryReader, Document, StorageContext, load_index_from_storage, ServiceContext, VectorStoreIndex
 from llama_index.node_parser import HierarchicalNodeParser, get_leaf_nodes
 from llama_index.indices.postprocessor import SentenceTransformerRerank
