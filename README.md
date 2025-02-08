@@ -1,9 +1,20 @@
 # AdvancedRAG
 
 ## Overview
-AdvancedRAG is a repository showcasing advanced Retrieval Augmented Generation (RAG) techniques. It demonstrates:
-- **AutoMerging Retrieval:** Automates hierarchical merging of document nodes via vector store indexing for enhanced retrieval relevance.
-- **Advanced RAG Pipeline:** Integrates multiple RAG workflows—including Sentence Window Retrieval and automated index building—with TruLens evaluation to assess output groundedness and relevance.
+A sophisticated implementation of advanced Retrieval Augmented Generation (RAG) techniques, featuring multi-strategy retrieval, automated evaluation, and modular architecture.
+
+## Key Features
+- **Multi-Strategy Retrieval Pipeline**
+  - AutoMerging Retrieval with hierarchical node parsing
+  - Sentence Window Retrieval for granular context
+  - Cross-encoder reranking for enhanced relevance
+  - Multi-hop reasoning capabilities
+
+- **Advanced Evaluation Framework**
+  - Integrated TruLens evaluation
+  - Confidence scoring and analysis
+  - Automated groundedness assessment
+  - Performance metrics dashboard
 
 ## File Structure
 - **/AutoMergingRetrieval**
@@ -21,8 +32,6 @@ AdvancedRAG is a repository showcasing advanced Retrieval Augmented Generation (
 
 - **/data**  
   Holds shared resources like PDF documents and evaluation question files.
-
-## Architecture
 
 ## Techniques and Methodologies
 - **AutoMerging Retrieval:**  
