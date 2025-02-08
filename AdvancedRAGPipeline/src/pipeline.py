@@ -7,6 +7,12 @@
 # Educational comments are included to explain each step of the pipeline.
 # ------------------------------------------------------------------------------
 
+"""
+This module orchestrates the RAG workflows, integrating Sentence Window Retrieval and automated index building,
+along with TruLens evaluation to assess output groundedness and relevance. It focuses on end-to-end pipeline
+execution and evaluation.
+"""
+
 from AdvancedRAG import utils
 import os
 import openai

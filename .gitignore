@@ -405,3 +405,6 @@ FodyWeavers.xsd
 **/__pycache__
 **/*~
 .env
+.pytest_cache
+**/.ipynb_checkpoints
+coverage*
