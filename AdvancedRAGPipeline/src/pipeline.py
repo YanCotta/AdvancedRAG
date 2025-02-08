@@ -21,9 +21,22 @@ openai.api_key = settings.OPENAI_API_KEY
 # Here we load a PDF document that serves as a knowledge base.
 # ------------------------------------------------------------------------------
 from llama_index import SimpleDirectoryReader
-documents = SimpleDirectoryReader(
-    input_files=["./eBook-How-to-Build-a-Career-in-AI.pdf"]
-).load_data()
+def load_data(input_files):
+    """
+    Loads data from the specified files using SimpleDirectoryReader.
+
+    Args:
+        input_files (list): A list of file paths to load.
+
+    Returns:
+        list: A list of Document objects loaded from the files.
+    """
+    documents = SimpleDirectoryReader(
+        input_files=input_files
+    ).load_data()
+    return documents
+
+documents = load_data(["./eBook-How-to-Build-a-Career-in-AI.pdf"])
 
 print(type(documents), "\n")
 print(len(documents), "\n")
@@ -35,7 +48,20 @@ print(documents[0])
 # This aggregates the document contents for indexing.
 # ------------------------------------------------------------------------------
 from llama_index import Document
-document = Document(text="\n\n".join([doc.text for doc in documents]))
+def consolidate_documents(documents):
+    """
+    Consolidates a list of Document objects into a single Document.
+
+    Args:
+        documents (list): A list of Document objects.
+
+    Returns:
+        Document: A single Document object containing the combined text from all input documents.
+    """
+    document = Document(text="\n\n".join([doc.text for doc in documents]))
+    return document
+
+document = consolidate_documents(documents)
 
 # ------------------------------------------------------------------------------
 # Step 3: Basic RAG pipeline using a vector store index.
@@ -60,12 +86,25 @@ print(str(response))
 # Step 4: Set up evaluation using TruLens.
 # Loads evaluation questions from file and prepares the TruLens recorder.
 # ------------------------------------------------------------------------------
-eval_questions = []
-with open('eval_questions.txt', 'r') as file:
-    for line in file:
-        item = line.strip()
-        print(item)
-        eval_questions.append(item)
+def load_eval_questions(file_path):
+    """
+    Loads evaluation questions from a specified file.
+
+    Args:
+        file_path (str): The path to the file containing evaluation questions.
+
+    Returns:
+        list: A list of evaluation questions.
+    """
+    eval_questions = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            item = line.strip()
+            print(item)
+            eval_questions.append(item)
+    return eval_questions
+
+eval_questions = load_eval_questions('eval_questions.txt')
 
 new_question = "What is the right AI job for me?"
 eval_questions.append(new_question)
