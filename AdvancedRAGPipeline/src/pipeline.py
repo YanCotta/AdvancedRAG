@@ -12,7 +12,9 @@ import os
 import openai
 
 # Initialize OpenAI API key using our utility function.
-openai.api_key = utils.get_openai_api_key()
+# openai.api_key = utils.get_openai_api_key()
+from AdvancedRAG.config import settings
+openai.api_key = settings.OPENAI_API_KEY
 
 # ------------------------------------------------------------------------------
 # Step 1: Load source documents.
@@ -43,7 +45,7 @@ from llama_index import VectorStoreIndex, ServiceContext
 from llama_index.llms import OpenAI
 llm = OpenAI(model="gpt-3.5-turbo", temperature=0.1)
 service_context = ServiceContext.from_defaults(
-    llm=llm, embed_model="local:BAAI/bge-small-en-v1.5"
+    llm=llm, embed_model=settings.EMBED_MODEL
 )
 index = VectorStoreIndex.from_documents([document], service_context=service_context)
 
@@ -95,7 +97,7 @@ from AdvancedRAG.src.utils import build_sentence_window_index
 sentence_index = build_sentence_window_index(
     document,
     llm,
-    embed_model="local:BAAI/bge-small-en-v1.5",
+    embed_model=settings.EMBED_MODEL,
     save_dir="sentence_index"
 )
 
@@ -126,7 +128,7 @@ from AdvancedRAG.src.utils import build_automerging_index
 automerging_index = build_automerging_index(
     documents,
     llm,
-    embed_model="local:BAAI/bge-small-en-v1.5",
+    embed_model=settings.EMBED_MODEL,
     save_dir="merging_index"
 )
 

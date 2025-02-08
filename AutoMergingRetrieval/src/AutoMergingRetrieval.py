@@ -16,6 +16,9 @@ from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.llms import OpenAI
 from trulens_eval import Tru
 
+# Import settings from config
+from AdvancedRAG.config import settings
+
 def load_documents() -> list:
     # Load documents from the given PDF
     return SimpleDirectoryReader(input_files=["./eBook-How-to-Build-a-Career-in-AI.pdf"]).load_data()
@@ -62,7 +65,7 @@ def main():
     llm = OpenAI(model="gpt-3.5-turbo", temperature=0.1)
     auto_merging_context = ServiceContext.from_defaults(
         llm=llm,
-        embed_model="local:BAAI/bge-small-en-v1.5",
+        embed_model=settings.EMBED_MODEL,
         node_parser=node_parser,
     )
 
@@ -71,7 +74,7 @@ def main():
     
     # Optionally, build a fresh index with different chunk sizes for layered tests
     auto_merging_index_0 = utils.build_automerging_index(
-        documents, llm=llm, embed_model="local:BAAI/bge-small-en-v1.5", save_dir="merging_index_0", chunk_sizes=[2048, 512]
+        documents, llm=llm, embed_model=settings.EMBED_MODEL, save_dir="merging_index_0", chunk_sizes=[2048, 512]
     )
     auto_merging_engine_0 = utils.get_automerging_query_engine(auto_merging_index_0, similarity_top_k=12, rerank_top_n=6)
 
@@ -89,7 +92,7 @@ def main():
 
     # Additional layers using three-layer index
     auto_merging_index_1 = utils.build_automerging_index(
-        documents, llm=llm, embed_model="local:BAAI/bge-small-en-v1.5", save_dir="merging_index_1", chunk_sizes=[2048, 512, 128]
+        documents, llm=llm, embed_model=settings.EMBED_MODEL, save_dir="merging_index_1", chunk_sizes=[2048, 512, 128]
     )
     auto_merging_engine_1 = utils.get_automerging_query_engine(auto_merging_index_1, similarity_top_k=12, rerank_top_n=6)
     tru_recorder = utils.get_prebuilt_trulens_recorder(auto_merging_engine_1, app_id='app_1')

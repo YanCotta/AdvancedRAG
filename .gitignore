@@ -398,3 +398,10 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Additional files to ignore
+*.log
+.DS_Store
+**/__pycache__
+**/*~
+.env

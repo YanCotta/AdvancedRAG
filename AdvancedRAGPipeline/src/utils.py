@@ -1,20 +1,28 @@
 #!pip install python-dotenv
 
-
 import os
-from dotenv import load_dotenv, find_dotenv
-
 import numpy as np
+import nest_asyncio
 from trulens_eval import (
     Feedback,
     TruLlama,
     OpenAI
 )
-
 from trulens_eval.feedback import Groundedness
-import nest_asyncio
+from llama_index import ServiceContext, VectorStoreIndex, StorageContext
+from llama_index.node_parser import SentenceWindowNodeParser
+from llama_index.indices.postprocessor import MetadataReplacementPostProcessor
+from llama_index.indices.postprocessor import SentenceTransformerRerank
+from llama_index import load_index_from_storage
+from llama_index.node_parser import HierarchicalNodeParser
+from llama_index.node_parser import get_leaf_nodes
+from llama_index.retrievers import AutoMergingRetriever
+from llama_index.query_engine import RetrieverQueryEngine
 
 nest_asyncio.apply()
+
+# Import settings from config
+from AdvancedRAG.config import settings
 
 # ------------------------------------------------------------------------------
 # Utility functions for environment API key loading and feedback configuration.
@@ -25,16 +33,14 @@ def get_openai_api_key():
     """
     Loads the OpenAI API key from the environment using a .env file.
     """
-    _ = load_dotenv(find_dotenv())
-    return os.getenv("OPENAI_API_KEY")
+    return settings.OPENAI_API_KEY
 
 
 def get_hf_api_key():
     """
     Loads the HuggingFace API key from the environment using a .env file.
     """
-    _ = load_dotenv(find_dotenv())
-    return os.getenv("HUGGINGFACE_API_KEY")
+    return settings.HUGGINGFACE_API_KEY
 
 openai = OpenAI()
 
@@ -85,13 +91,6 @@ def get_prebuilt_trulens_recorder(query_engine, app_id):
         )
     return tru_recorder
 
-from llama_index import ServiceContext, VectorStoreIndex, StorageContext
-from llama_index.node_parser import SentenceWindowNodeParser
-from llama_index.indices.postprocessor import MetadataReplacementPostProcessor
-from llama_index.indices.postprocessor import SentenceTransformerRerank
-from llama_index import load_index_from_storage
-import os
-
 # ------------------------------------------------------------------------------
 # Functions related to index creation and query engine setup for retrieval tasks.
 # ------------------------------------------------------------------------------
@@ -112,7 +111,7 @@ def build_sentence_window_index(
     )
     sentence_context = ServiceContext.from_defaults(
         llm=llm,
-        embed_model=embed_model,
+        embed_model=settings.EMBED_MODEL,
         node_parser=node_parser,
     )
     if not os.path.exists(save_dir):
@@ -140,21 +139,12 @@ def get_sentence_window_query_engine(
     """
     postproc = MetadataReplacementPostProcessor(target_metadata_key="window")
     rerank = SentenceTransformerRerank(
-        top_n=rerank_top_n, model="BAAI/bge-reranker-base"
+        top_n=rerank_top_n, model=settings.RERANK_MODEL
     )
     sentence_window_engine = sentence_index.as_query_engine(
         similarity_top_k=similarity_top_k, node_postprocessors=[postproc, rerank]
     )
     return sentence_window_engine
-
-
-from llama_index.node_parser import HierarchicalNodeParser
-
-from llama_index.node_parser import get_leaf_nodes
-from llama_index import StorageContext
-from llama_index.retrievers import AutoMergingRetriever
-from llama_index.indices.postprocessor import SentenceTransformerRerank
-from llama_index.query_engine import RetrieverQueryEngine
 
 
 def build_automerging_index(
@@ -168,7 +158,7 @@ def build_automerging_index(
     Builds or loads an auto-merging index from a list of documents.
     - Splits the document into hierarchical nodes for various granularities.
     """
-    chunk_sizes = chunk_sizes or [2048, 512, 128]
+    chunk_sizes = chunk_sizes or settings.CHUNK_SIZES
     node_parser = HierarchicalNodeParser.from_defaults(chunk_sizes=chunk_sizes)
     nodes = node_parser.get_nodes_from_documents(documents)
     leaf_nodes = get_leaf_nodes(nodes)
@@ -206,7 +196,7 @@ def get_automerging_query_engine(
         base_retriever, automerging_index.storage_context, verbose=True
     )
     rerank = SentenceTransformerRerank(
-        top_n=rerank_top_n, model="BAAI/bge-reranker-base"
+        top_n=rerank_top_n, model=settings.RERANK_MODEL
     )
     auto_merging_engine = RetrieverQueryEngine.from_args(
         retriever, node_postprocessors=[rerank]
